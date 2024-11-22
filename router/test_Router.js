@@ -1,17 +1,9 @@
 // 순수 테스트 용도 router
 
 import express from 'express';
-import { PrismaClient } from '@prisma/client'; //클라이언트 받아오기
+import { prisma } from '../utils/prisma/index.js';
 
 const router = express.Router(); // express.Router()를 이용해 라우터를 생성합니다.
-
-const prisma = new PrismaClient({
-  // Prisma를 이용해 데이터베이스를 접근할 때, SQL을 출력해줍니다.
-  log: ['query', 'info', 'warn', 'error'],
-  // 클라이언트 생성
-  // 에러 메시지를 평문이 아닌, 개발자가 읽기 쉬운 형태로 출력해줍니다.
-  errorFormat: 'pretty',
-}); // PrismaClient 인스턴스를 생성합니다.
 
 // 게시글 생성
 router.post('/posts', async (req, res, next) => {
@@ -23,8 +15,24 @@ router.post('/posts', async (req, res, next) => {
       password,
     },
   });
-
   return res.status(201).json({ data: post });
+});
+
+/** 게시글 상세 조회 API **/
+router.get('/posts/:postId', async (req, res, next) => {
+  const { postId } = req.params; //findfirst 하나만 찾는용도
+  const post = await prisma.posts.findFirst({
+    where: { postId: +postId }, // +붙이면 문자열을 숫자열로 변경
+    select: {
+      postId: true,
+      title: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return res.status(200).json({ data: post });
 });
 
 export default router;

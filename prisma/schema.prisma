@@ -14,13 +14,31 @@ datasource db {
 }
 
 model user_Data{
-  userID Int @id @default(autoincrement()) @map("userID")
-  userName String @map("userName")
-  userPassword  String @map("userPassword")
+  userPID Int @id @default(autoincrement()) @map("userPID")
+  userName String @unique @map("userName")
+  userID String @unique @map("userID")
+  userPassword String @map("userPassword")
+  admin Boolean? @default(false) @map("admin")
+
   createdAt DateTime @default(now()) @map("createdAt")
   updatedAt DateTime @updatedAt @map("updatedAt")
 
+  character_data character_Data?
+  auction_data auction_Data[]
+
   @@map("user_Data")
+}
+
+model character_Data{
+  characterPID Int @id @default(autoincrement()) @map("characterPID")
+  userPID Int @unique @map("userPID")
+  characterMHP Int @map("characterMHP")
+  characterATCK Int @map("characterATCK")
+  characterBackpack Int @default(20) @map("characterBackpack")
+  
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
+
+  @@map("character_Data")
 }
 
 enum item_Type {
@@ -31,12 +49,41 @@ enum item_Type {
 }
 
 model item_DataBase{
-  itemID Int @id @default(autoincrement()) @map("itemID")
-  itemIDName String @map("itemIDName")
+  itemPID  Int @id @default(autoincrement()) @map("itemPID")
+  itemName String @unique @map("itemName")
   itemText  String @map("itemText") @db.Text
-  itemValue Int @map("itemValue")
-  itemEffect Int?  @map("itemValue")
-  itemType item_Type @map("itemType")
+  itemImage  String @map("itemImage") @db.Text
+  itemValue  Int @default(0) @map("itemValue")
+  itemEffect Int?  @map("itemEffect")
+  itemType item_Type @default(HP) @map("itemType")
   
-  @@map("user_Data")
+  auction_data auction_Data[]
+
+  @@map("item_DataBase")
+}
+
+model auction_Data{
+  auctionPID Int @id @default(autoincrement()) @map("auctionPID")
+  itemPID Int @map("itemPID")
+  userPID Int @map("userPID")
+  userName String @map("userName")
+  sellValue Int? @default(0) @map("sellValue")
+  sellCount Int? @default(1) @map("sellCount")
+  
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
+  item_data item_DataBase @relation(fields: [itemPID], references: [itemPID], onUpdate: Cascade)
+
+
+  @@map("auction_Data")
+}
+
+model refreshToken{
+  tokenPID Int @id @default(autoincrement()) @map("tokenPID")
+  userPID Int @map("userPID")
+  userIP Int @map("userIP")
+  userAgent String @map("userAgent")
+  createdAt DateTime @default(now()) @map("createdAt")
+  expireAt DateTime @map("expireAt")
+
+  @@map("refreshToken")
 }
