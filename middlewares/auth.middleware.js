@@ -50,20 +50,20 @@ export default async function (req, res, next) {
 async function checkAccessToken(req, res) {
   const refreshToken = req.cookies.refreshToken;
 
-  // Refresh Token 존재 여부 확인
+  // RefreshToken 존재 여부 확인
   if (!refreshToken) {
     res.status(400).json({ errorMessage: '토큰이 존재하지 않습니다.' });
     return null;
   }
 
-  // Refresh Token 검증
+  // RefreshToken 유효기간 확인
   const payload = validateToken(refreshToken, REFRESH_TOKEN_SECRET_KEY);
   if (!payload) {
     res.status(401).json({ errorMessage: '토큰이 유효하지 않습니다.' });
     return null;
   }
 
-  // Token 저장소에서 사용자 정보 확인
+  // refreshToken 저장소에서 사용자 정보 확인
   const userInfo = await prisma.refreshToken.findFirst({
     where: { userPID: +refreshToken.userPID },
   });
@@ -74,10 +74,10 @@ async function checkAccessToken(req, res) {
     return null;
   }
 
-  // 새로운 Access Token 생성
+  // 새로운 AccessToken 생성
   const newAccessToken = createAccessToken(userInfo.id);
 
-  // Access Token을 안전하게 쿠키에 저장
+  // AccessToken을 안전하게 쿠키에 저장
   res.cookie('accessToken', newAccessToken, {
     httpOnly: true,
   });

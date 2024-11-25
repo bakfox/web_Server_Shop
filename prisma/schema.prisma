@@ -32,8 +32,20 @@ model user_Data{
 model character_Data{
   characterPID Int @id @default(autoincrement()) @map("characterPID")
   userPID Int @unique @map("userPID")
-  characterMHP Int @map("characterMHP")
-  characterATCK Int @map("characterATCK")
+
+  characterLevel Int @default(1) @map("characterLevel")
+  characterStatusPoint Int @default(1) @map("characterStatusPoint")
+  characterEXP Int @default(0) @map("characterEXP")
+  characterLevel_EXP Int @default(10) @map("characterLevel_EXP")
+
+  characterGold Int @default(1000) @map("characterGold")
+
+  characterHP Int @default(100) @map("characterHP")
+
+  characterATCK Int @default(0) @map("characterATCK")
+  characterMACTK Int @default(0) @map("characterMACTK")
+  characterDEFEND Int @default(0) @map("characterDEFEND")
+
   characterBackpack Int @default(20) @map("characterBackpack")
   
   user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
@@ -67,9 +79,11 @@ model auction_Data{
   itemPID Int @map("itemPID")
   userPID Int @map("userPID")
   userName String @map("userName")
-  sellValue Int? @default(0) @map("sellValue")
-  sellCount Int? @default(1) @map("sellCount")
+  sellValue Int @default(0) @map("sellValue")
+  sellCount Int @default(1) @map("sellCount")
   
+  sellItem Boolean  @default(false) @map("sellItem")
+
   user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
   item_data item_DataBase @relation(fields: [itemPID], references: [itemPID], onUpdate: Cascade)
 

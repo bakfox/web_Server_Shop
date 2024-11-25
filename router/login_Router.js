@@ -1,16 +1,10 @@
 import express from 'express';
 import { prisma } from '../utils/prisma/index.js';
 import bcrypt from 'bcrypt';
-
 import authMiddleware from '../middlewares/auth.middleware.js';
-import {
-  ACCESS_TOKEN_SECRET_KEY,
-  REFRESH_TOKEN_SECRET_KEY,
-  createAccessToken,
-  createRefreshToken,
-} from '../key/jwt_Key.js';
 
-const tokenStorages = {};
+import { createAccessToken, createRefreshToken } from '../key/jwt_Key.js';
+
 const router = express.Router();
 
 // 회원가입 api
@@ -23,9 +17,9 @@ router.post('/singUp', async (req, res, next) => {
   });
   // 체크용도 이름이랑 아이디
   if (checkUserName[0]) {
-    return res.status(409).json({ message: ' 이미 존재하는 닉네임 입니다. ' });
+    next();
   } else if (checkUserName[1]) {
-    return res.status(409).json({ message: ' 이미 존재하는 아이디 입니다. ' });
+    next();
   }
   const hashdePW = await bcrypt.hash(userPassword, 10);
   const user = await prisma.user_Data.create({
@@ -40,12 +34,10 @@ router.post('/singIn', async (req, res, next) => {
   const { userID, userPassword } = req.body;
   const user = await prisma.user_Data.findFirst({ where: { userID } });
   if (user) {
-    return res.status(401).json({ message: ' 존재하지 않는 아이디 입니다. ' });
+    next();
   }
   if (!(await bcrypt.compare(userPassword, user.userPassword))) {
-    return res
-      .status(401)
-      .json({ message: ' 비밀번호가 일치하지  않습니다. ' });
+    next();
   }
   // 토큰 생성
   const accessToken = createAccessToken(user.userPID);
@@ -72,6 +64,13 @@ router.get('/users', authMiddleware, async (req, res, next) => {
 
   const user = await prisma.user_Data.findFirst({
     where: { userPID: +userPID },
+  });
+  if (!user) {
+    next();
+  }
+  res.status(200).json({
+    message: ' 불러오기 성공! ',
+    data: user,
   });
 });
 
