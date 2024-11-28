@@ -3,7 +3,9 @@ import { prisma } from '../utils/prisma/index.js';
 import bcrypt from 'bcrypt';
 import authMiddleware from '../middlewares/auth.middleware.js';
 
-import { createAccessToken, createRefreshToken } from '../key/jwt_Key.js';
+import jwt from 'jsonwebtoken';
+
+import { createAccessToken } from '../key/jwt_Key.js';
 
 const router = express.Router();
 
@@ -28,12 +30,42 @@ router.post('/singUp', async (req, res, next) => {
 
   return res.status(201).json({ message: ' 당신은 이제 저희 회원입니다! ' });
 });
+// 토큰 검증 함수
+function validateToken(token, secretKey) {
+  try {
+    return jwt.verify(token, secretKey);
+  } catch (err) {
+    return null;
+  }
+}
+//진짜 토큰 테스트용도
+router.post('/rogin_test/token', async (req, res) => {
+  const authorizationHeader = req.headers['authorization'];
+
+  if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Bearer 토큰이 아닙니다.' });
+  }
+
+  const token = authorizationHeader.split(' ')[1];
+
+  const payload = validateToken(token, 'MeowMeow');
+  const { userPID } = payload;
+  // 토큰 검증 및 사용자 확인
+  return res.status(201).json({
+    message: ' 당신은 이제 저희 회원입니다! ',
+    data: {
+      payload,
+      token,
+      userPID,
+    },
+  });
+});
 
 // 로그인 api
 router.post('/singIn', async (req, res, next) => {
   const { userID, userPassword } = req.body;
   const user = await prisma.user_Data.findFirst({ where: { userID } });
-  if (user) {
+  if (!user) {
     next();
   }
   if (!(await bcrypt.compare(userPassword, user.userPassword))) {
@@ -41,24 +73,13 @@ router.post('/singIn', async (req, res, next) => {
   }
   // 토큰 생성
   const accessToken = createAccessToken(user.userPID);
-  const refreshToken = createRefreshToken(user.userPID);
-  //토큰 저장
-  const token = await prisma.tokenStorages.create({
-    data: {
-      userPID: user.userPID,
-      userIP: req.ip,
-      userAgent: req.headers['user-agent'],
-      expireAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-    },
-  });
 
-  res.cookie('accessToken', accessToken, { httpOnly: true });
-  res.cookie('refreshToken', refreshToken);
+  //헤더로 저장
+  res.setHeader('authorization', `Bearer ${accessToken}`);
 
   return res.status(200).json({ message: ' 로그인 성공하였습니다.' });
 });
 
-// 쿠키 기반으로 체크하는 미들웨어 변경해야함.
 router.get('/users', authMiddleware, async (req, res, next) => {
   const { userPID } = req.user;
 

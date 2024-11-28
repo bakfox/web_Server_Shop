@@ -1,0 +1,28 @@
+* {
+  font-family: 'Nanum Pen Script', serif;
+  color: rgb(206, 206, 206);
+}
+h1 {
+  font-size: 54px;
+}
+p {
+  font-size: 36px;
+}
+body {
+  background-color: rgb(32, 32, 32);
+  display: grid;
+  place-items: center;
+  gap: 20px;
+}
+button {
+  font-size: 24px;
+  outline: none;
+  border: none;
+  background-color: #adadad;
+  color: rgb(255, 255, 255);
+  padding: 10px 20px;
+  border-radius: 5px;
+}
+button:active {
+  background-color: #4e4e4e;
+}

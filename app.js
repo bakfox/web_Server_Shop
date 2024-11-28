@@ -1,30 +1,23 @@
 import express from 'express';
 
 import loginRouter from './router/login_Router.js';
-import auctionRouter from './router/auction_Router.js';
+//import auctionRouter from './router/auction_Router.js';
 import itemDataBaseRouter from './router/itemData_Router.js';
 import characterRouter from './router/character_Router.js';
-import battleRouter from './router/battle_Router.js';
 import inventoryRouter from './router/inventory_Router.js';
 
 import errorMiddleware from './middlewares/error.middleware.js';
 
-import connect_mongo from './utils/model/mongo_index.js';
-
 const app = express();
 const PORT = 3017;
 
-connect_mongo(); // 몽고 연결
-
 app.use(express.json()); //json 타입
 app.use(express.urlencoded({ extended: true })); //바디 파서
-
 app.use('/api', [
   loginRouter,
-  auctionRouter,
+  //auctionRouter,
   itemDataBaseRouter,
   characterRouter,
-  battleRouter,
   inventoryRouter,
 ]); //메인 라우터들
 
