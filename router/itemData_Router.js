@@ -3,6 +3,7 @@ import { prisma } from '../utils/prisma/index.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import { Prisma } from '@prisma/client';
 import removeAtIndex from '../utils/model/removeIndex.js';
+import errModel from '../utils/model/errModel.js';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get('/items/:page', async (req, res, next) => {
     take: 10, // 몇 개를 가져올지
   });
   if (!items) {
-    next();
+    return next(errModel(404, '아이템 데이터가 없습니다.'));
   }
   res.status(200).json({
     message: ' 불러오기 성공! ',
@@ -31,7 +32,7 @@ router.get('/item/:itemPID', async (req, res, next) => {
     where: { itemPID: +itemPID },
   });
   if (!items) {
-    next();
+    return next(errModel(404, '아이템 데이터가 없습니다.'));
   }
   res.status(200).json({
     message: ' 불러오기 성공! ',
@@ -43,11 +44,12 @@ router.get('/item/:itemPID', async (req, res, next) => {
 router.patch('/buyItem/:itemPID', authMiddleware, async (req, res, next) => {
   const { itemPID } = req.params;
   const { userPID } = req.user;
+  const { count } = req.body;
   const items = await prisma.item_DataBase.findFirst({
     where: { itemPID: +itemPID },
   });
   if (!items) {
-    next();
+    return next();
   }
   const character = await prisma.character_Data.findFirst({
     where: { userPID: +userPID },
@@ -56,21 +58,24 @@ router.patch('/buyItem/:itemPID', authMiddleware, async (req, res, next) => {
       characterBackpack: true,
     },
   });
-  if (character.characterGold < items.itemValue) {
-    next();
+  if (count <= 0) {
+    return next(errModel(400, '0개 미만은 구매하실수 없습니다.'));
+  }
+  if (character.characterGold < items.itemValue * count) {
+    return next(errModel(400, '골드가 모자릅니다.'));
   }
   //인벤토리 체크
   const inventory = await prisma.inventory_Data.findFirst({
     where: { userPID: +userPID },
   });
   if (character.characterBackpack <= inventory.itemPID.lenght) {
-    next();
+    return next(errModel(400, '인벤토리 최대 칸수를 초과합니다.'));
   }
   //데이터들 가공
-  const tempGold = character.characterGold - items.itemValue;
+  const tempGold = character.characterGold - items.itemValue * count;
   const tempPid = [...inventory.itemPID, items.itemPID];
   const tempName = [...inventory.itemName, items.itemName];
-  const tempCount = [...inventory.itemCount, 1];
+  const tempCount = [...inventory.itemCount, count];
 
   // 검사 끝나면 인벤에 집어넣기
   await prisma.$transaction(
@@ -109,9 +114,11 @@ router.patch(
       where: { userPID: +userPID },
     });
     if (!inventory) {
-      next(); // 인벤토리가 없다
+      return next(errModel(404, '인벤토리 데이터가 없습니다..')); // 인벤토리가 없다
     } else if (inventory.itemPID[inventoryIndex] === undefined) {
-      next(); //아이템이 없다.
+      return next(
+        errModel(404, '지정하신 인벤토리 칸에 아이템 데이터가 없습니다.'),
+      ); //아이템이 없다.
     }
     const item = await prisma.item_DataBase.findFirst({
       where: { itemPID: +inventory.itemPID[inventoryIndex] },
@@ -123,8 +130,8 @@ router.patch(
       // 카운트가 하나보다 많다.
       //데이터 미리 계산
       const tempCount = [...inventory.itemCount];
-      tempCount[targetIndex] -= 1;
-      const tempGold = character.characterGold + item.itemValue;
+      tempCount[inventoryIndex] -= 1;
+      const tempGold = character.characterGold + item.itemValue * 0.6;
       await prisma.$transaction(
         async (tx) => {
           await tx.inventory_Data.update({
@@ -146,7 +153,7 @@ router.patch(
       );
     } else {
       //하나면 그 칸을 삭제함
-      const tempGold = character.characterGold + item.itemValue;
+      const tempGold = character.characterGold + item.itemValue * 0.6;
       const tempPid = removeAtIndex(inventory.itemPID, +inventoryIndex);
       const tempName = removeAtIndex(inventory.itemName, +inventoryIndex);
       const tempCount = removeAtIndex(inventory.itemCount, +inventoryIndex);
@@ -185,9 +192,9 @@ router.post('/setItem', async (req, res, next) => {
     where: { itemName },
   });
   if (items) {
-    next();
+    return next(errModel(400, '동일 이름 데이터가 존재합니다.'));
   }
-  const makeItems = await prisma.item_DataBase.create({
+  await prisma.item_DataBase.create({
     data: { itemName, itemText, itemValue, itemEffect, item_Type },
   });
   return res.status(200).json({
@@ -205,7 +212,7 @@ router.patch('/updateItem/:itemPID', async (req, res, next) => {
     where: { itemPID: +itemPID }, //아이템 ID로 검색
   });
   if (!item) {
-    next();
+    return next(errModel(404, '아이템 데이터가 없습니다..'));
   }
   // 아이템 업데이트
   const updatedItem = await prisma.item_DataBase.update({
@@ -224,7 +231,7 @@ router.delete('/deleteItem/:itemPID', async (req, res, next) => {
     where: { itemPID: +itemPID }, //아이템 ID로 검색
   });
   if (!item) {
-    next();
+    return next(errModel(404, '아이템 데이터가 없습니다..'));
   }
   await prisma.item_DataBase.delete({
     where: { itemPID: +itemPID },

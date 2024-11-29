@@ -42,7 +42,7 @@ model character_Data{
   characterEXP Int @default(0) @map("characterEXP")
   characterLevel_EXP Int @default(10) @map("characterLevel_EXP")
 
-  characterGold Int @default(1000) @map("characterGold")
+  characterGold Int @default(10000) @map("characterGold")
 
   characterHP Int @default(100) @map("characterHP")
 

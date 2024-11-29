@@ -3,6 +3,7 @@ import { prisma } from '../utils/prisma/index.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import { Prisma } from '@prisma/client';
 import removeAtIndex from '../utils/model/removeIndex.js';
+import errModel from '../utils/model/errModel.js';
 
 const router = express.Router();
 
@@ -17,22 +18,19 @@ router.patch(
     const inventory = await prisma.inventory_Data.findFirst({
       where: { userPID: +userPID },
     });
-    console.log(inventory);
     if (!inventory) {
-      next(); //인벤토리가 없음!
-    } else if (inventory.itemPID.length === 0) {
-      next(); //인벤토리 내에 아이템이 없음!
-    } else if (
-      inventoryIndex >= inventory.itemPID.length ||
-      inventory.itemPID[inventoryIndex] === undefined
-    ) {
-      next(); //빈칸이라면 에러
+      return next(errModel(404, '인벤토리 데이터가 없습니다.')); //인벤토리가 없음!
+    } else if (!inventory.itemPID || inventory.itemPID.length === 0) {
+      return next(errModel(404, '인벤토리내에 아이템 데이터가 없습니다.')); //인벤토리 내에 아이템이 없음!
+    } else if (inventory.itemPID[inventoryIndex] === undefined) {
+      return next(errModel(400, '지정하신 인벤토리에 아이템이 없습니다.'));
     }
+
     const item = await prisma.item_DataBase.findFirst({
       where: { itemPID: +inventory.itemPID[inventoryIndex] },
     });
     if (!item) {
-      next(); //아이템이 존재하지 않음!
+      return next(errModel(404, '아이템 데이터가 없습니다.')); //아이템이 존재하지 않음!
     }
     const equipInventory = await prisma.equipInventory_Data.findFirst({
       where: { userPID: +userPID },
@@ -41,8 +39,13 @@ router.patch(
       where: { userPID: +userPID },
       select: { characterEquip: true },
     });
+    console.log(
+      +equipInventory.itemPID.length >= +character.characterEquip,
+      equipInventory.itemPID.length,
+      character.characterEquip,
+    );
     if (equipInventory.itemPID.length >= character.characterEquip) {
-      next(); // 장비창 가득참!
+      return next(errModel(400, '장비창에 빈 공간이 없습니다.'));
     }
     //데이터 가공 -
     const eTempPid = [...equipInventory.itemPID, item.itemPID];
@@ -83,6 +86,7 @@ router.patch(
       .json({ message: '아이템을 성공적으로 장착했습니다!' });
   },
 );
+
 // 장비 해제 역순으로
 router.patch(
   '/equipInventory_Unequip/:equipInventoryIndex',
@@ -95,37 +99,29 @@ router.patch(
     });
     console.log(inventory);
     if (!inventory) {
-      next(); //인벤토리가 없음!
+      return next(errModel(404, '인벤토리내에 아이템 데이터가 없습니다.')); //인벤토리가 없음!
     }
     const character = await prisma.character_Data.findFirst({
       where: { userPID: +userPID },
       select: { characterBackpack: true },
     });
     if (inventory.itemPID.length >= character.characterBackpack) {
-      next(); // 인벤토리 가득참!
+      return next(errModel(400, '인벤토리가 가득 차서 해제할 수 없습니다.')); // 인벤토리 가득참!
     }
     const equipInventory = await prisma.equipInventory_Data.findFirst({
       where: { userPID: +userPID },
     });
     if (!equipInventory) {
-      next(); //없으면 이상한거임.
+      return next(errModel(404, '인벤토리 데이터가 없습니다.')); //없으면 이상한거임.
+    } else if (
+      equipInventory.itemPID.length === 0 ||
+      equipInventory.itemPID[equipInventoryIndex] == undefined
+    ) {
+      // 장착칸에 아무것도 없음
+      return next(
+        errModel(404, '지정하신 인벤토리 칸에 아이템 데이터가 없습니다.'),
+      );
     }
-
-    //데이터 가공 -
-    const eTempPid = removeAtIndex(equipInventory.itemPID, equipInventoryIndex);
-    const eTempName = removeAtIndex(
-      equipInventory.itemName,
-      equipInventoryIndex,
-    );
-    const eTempEffect = removeAtIndex(
-      equipInventory.itemEffect,
-      equipInventoryIndex,
-    );
-    const eTempType = removeAtIndex(
-      equipInventory.item_Type,
-      equipInventoryIndex,
-    );
-
     const tempPid = [
       ...inventory.itemPID,
       equipInventory.itemPID[equipInventoryIndex],
@@ -135,6 +131,25 @@ router.patch(
       equipInventory.itemName[equipInventoryIndex],
     ];
     const tempCount = [...inventory.itemCount, 1];
+
+    //데이터 가공 -
+    const eTempPid = removeAtIndex(
+      equipInventory.itemPID,
+      +equipInventoryIndex,
+    );
+    const eTempName = removeAtIndex(
+      equipInventory.itemName,
+      +equipInventoryIndex,
+    );
+    const eTempEffect = removeAtIndex(
+      equipInventory.itemEffect,
+      +equipInventoryIndex,
+    );
+    const eTempType = removeAtIndex(
+      equipInventory.item_Type,
+      +equipInventoryIndex,
+    );
+
     //저장은 장착 해제 동일함!
     await prisma.$transaction(
       async (tx) => {
@@ -172,7 +187,7 @@ router.get('/equipInventorys/:userPID', async (req, res, next) => {
     where: { userPID: +userPID },
   });
   if (!equipInventory) {
-    next();
+    return next(errModel(404, '장비창 데이터가 없습니다.'));
   }
   return res.status(200).json({
     message: '아이템을 성공적으로 저장했습니다!',
@@ -187,13 +202,13 @@ router.get('/inventorys', authMiddleware, async (req, res, next) => {
     where: { userPID: +userPID },
   });
   if (!inventory) {
-    next();
+    return next(errModel(404, '인벤토리내 데이터가 없습니다.'));
   }
   const equipInventory = await prisma.equipInventory_Data.findFirst({
     where: { userPID: +userPID },
   });
   if (!equipInventory) {
-    next();
+    return next(errModel(404, '장비창 데이터가 없습니다.'));
   }
   return res.status(200).json({
     message: '아이템을 성공적으로 저장했습니다!',

@@ -2,25 +2,89 @@ import express from 'express';
 import { prisma } from '../utils/prisma/index.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import { Prisma } from '@prisma/client';
+import errModel from '../utils/model/errModel.js';
 
 const router = express.Router();
 
-//캐릭터 데이터 받아오기( 세부 )
+//캐릭터 데이터 받아오기( 보통 )
 router.get('/character/:userPID', async (req, res, next) => {
   const { userPID } = req.params;
 
   const character = await prisma.character_Data.findFirst({
     where: { userPID: +userPID },
+    select: {
+      characterATCK: true,
+      characterDEFEND: true,
+      characterMACTK: true,
+      characterLevel: true,
+      characterHP: true,
+    },
   });
   if (!character) {
-    next();
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
+  }
+  const equipInventory = await prisma.equipInventory_Data.findFirst({
+    where: { userPID: +userPID },
+  });
+  if (equipInventory.itemPID.length != 0) {
+    for (let i = 0; i < equipInventory.itemPID.length; i++) {
+      switch (equipInventory.item_Type[i]) {
+        case 'HP':
+          character.characterHP += equipInventory.itemEffect[i];
+          break;
+        case 'ATCK':
+          character.characterATCK += equipInventory.itemEffect[i];
+          break;
+        case 'DEFEND':
+          character.characterDEFEND += equipInventory.itemEffect[i];
+          break;
+        case 'MATCK':
+          character.characterMACTK += equipInventory.itemEffect[i];
+          break;
+      }
+    }
   }
   res.status(200).json({
     message: ' 불러오기 성공! ',
     data: character,
   });
 });
+//캐릭터 데이터 받아오기( 세부 )
+router.get('/character', authMiddleware, async (req, res, next) => {
+  const { userPID } = req.user;
 
+  const character = await prisma.character_Data.findFirst({
+    where: { userPID: +userPID },
+  });
+  if (!character) {
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
+  }
+  const equipInventory = await prisma.equipInventory_Data.findFirst({
+    where: { userPID: +userPID },
+  });
+  if (equipInventory.itemPID.length != 0) {
+    for (let i = 0; i < equipInventory.itemPID.length; i++) {
+      switch (equipInventory.item_Type[i]) {
+        case 'HP':
+          character.characterHP += equipInventory.itemEffect[i];
+          break;
+        case 'ATCK':
+          character.characterATCK += equipInventory.itemEffect[i];
+          break;
+        case 'DEFEND':
+          character.characterDEFEND += equipInventory.itemEffect[i];
+          break;
+        case 'MATCK':
+          character.characterMACTK += equipInventory.itemEffect[i];
+          break;
+      }
+    }
+  }
+  res.status(200).json({
+    message: ' 불러오기 성공! ',
+    data: character,
+  });
+});
 //캐릭터 새로 생성
 router.post('/newCharacter', authMiddleware, async (req, res, next) => {
   const { userPID } = req.user;
@@ -29,7 +93,7 @@ router.post('/newCharacter', authMiddleware, async (req, res, next) => {
   });
   //캐릭터 있으면 오류 발생
   if (character) {
-    next();
+    return next(errModel(400, '캐릭터가 이미 있습니다.'));
   }
   // 유저 데이터 생성 인벤이랑 전부다.
   prisma.$transaction(
@@ -63,7 +127,7 @@ router.put('/character', authMiddleware, async (req, res, next) => {
     where: { userPID: +userPID }, //유저 id 로 검색
   });
   if (!check) {
-    next();
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
   }
   // 캐릭터 업데이트
   const character = await prisma.character_Data.update({
@@ -162,7 +226,7 @@ router.patch('/getGold', authMiddleware, async (req, res, next) => {
     where: { userPID: +userPID }, //아이템 ID로 검색
   });
   if (!check) {
-    next();
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
   }
   // 캐릭터 업데이트
   const character = await prisma.character_Data.update({
@@ -184,7 +248,7 @@ router.patch('/lossGold', authMiddleware, async (req, res, next) => {
     where: { userPID: +userPID }, //아이템 ID로 검색
   });
   if (!check) {
-    next();
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
   }
   // 캐릭터 업데이트
   const character = await prisma.character_Data.update({
@@ -196,7 +260,7 @@ router.patch('/lossGold', authMiddleware, async (req, res, next) => {
           : check.characterGold - lossGold,
     },
   });
-  return res.status(200).json({
+  return res.status(201).json({
     message: '골드가 감소했습니다.',
   });
 });
@@ -208,7 +272,7 @@ router.delete('/deleteCharacter', authMiddleware, async (req, res, next) => {
     where: { userPID: +userPID }, //아이템 ID로 검색
   });
   if (!character) {
-    next();
+    return next(errModel(404, '캐릭터 데이터가 없습니다.'));
   }
   await prisma.$transaction(
     async (tx) => {
