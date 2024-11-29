@@ -18,13 +18,17 @@ model user_Data{
   userName String @unique @map("userName")
   userID String @unique @map("userID")
   userPassword String @map("userPassword")
-  admin Boolean? @default(false) @map("admin")
+  isAdmin Boolean? @default(false) @map("isAdmin")
 
   createdAt DateTime @default(now()) @map("createdAt")
   updatedAt DateTime @updatedAt @map("updatedAt")
 
   character_data character_Data?
+  inventory_Data inventory_Data?
+  EquipInventory_Data EquipInventory_Data?
+  
   auction_data auction_Data[]
+  auction_Get_Data auction_Get_Data[]
 
   @@map("user_Data")
 }
@@ -32,10 +36,23 @@ model user_Data{
 model character_Data{
   characterPID Int @id @default(autoincrement()) @map("characterPID")
   userPID Int @unique @map("userPID")
-  characterMHP Int @map("characterMHP")
-  characterATCK Int @map("characterATCK")
+
+  characterLevel Int @default(1) @map("characterLevel")
+  characterStatusPoint Int @default(1) @map("characterStatusPoint")
+  characterEXP Int @default(0) @map("characterEXP")
+  characterLevel_EXP Int @default(10) @map("characterLevel_EXP")
+
+  characterGold Int @default(10000) @map("characterGold")
+
+  characterHP Int @default(100) @map("characterHP")
+
+  characterATCK Int @default(0) @map("characterATCK")
+  characterMACTK Int @default(0) @map("characterMACTK")
+  characterDEFEND Int @default(0) @map("characterDEFEND")
+
   characterBackpack Int @default(20) @map("characterBackpack")
-  
+  characterEquip Int @default(5) @map("characterEquip")
+
   user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
 
   @@map("character_Data")
@@ -48,16 +65,42 @@ enum item_Type {
   MACTK
 }
 
+model inventory_Data{
+  inventoryPid Int @id @default(autoincrement())
+  userPID Int @unique @map("userPID")
+  itemPID Json  @default("[]")  @map("itemPID")
+  itemName Json  @default("[]")  @map("itemName")
+  itemCount Json  @default("[]")  @map("itemCount")
+
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
+  
+  @@map("inventory_Data")
+}
+
+model EquipInventory_Data{
+  inventoryPid Int @id @default(autoincrement())
+  userPID Int @unique @map("userPID")
+  itemPID Json  @default("[]")  @map("itemPID")
+  itemEffect Json @default("[]") @map("itemEffect")
+  itemName Json  @default("[]")  @map("itemName")
+  item_Type Json @default("[]") @map("item_Type")
+
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
+  
+  @@map("EquipInventory_Data")
+}
+
+
+
 model item_DataBase{
   itemPID  Int @id @default(autoincrement()) @map("itemPID")
-  itemName String @unique @map("itemName")
+  itemName String  @map("itemName")
   itemText  String @map("itemText") @db.Text
-  itemImage  String @map("itemImage") @db.Text
   itemValue  Int @default(0) @map("itemValue")
   itemEffect Int?  @map("itemEffect")
-  itemType item_Type @default(HP) @map("itemType")
+  recentlySoldPrice Int? @default(0) @map("recentlySoldPrice")
+  item_Type item_Type @default(HP) @map("item_Type")
   
-  auction_data auction_Data[]
 
   @@map("item_DataBase")
 }
@@ -66,21 +109,37 @@ model auction_Data{
   auctionPID Int @id @default(autoincrement()) @map("auctionPID")
   itemPID Int @map("itemPID")
   userPID Int @map("userPID")
+  itemName String @map("itemName")
   userName String @map("userName")
-  sellValue Int? @default(0) @map("sellValue")
-  sellCount Int? @default(1) @map("sellCount")
+  sellValue Int @default(0) @map("sellValue")
+  sellCount Int @default(1) @map("sellCount")
   
-  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
-  item_data item_DataBase @relation(fields: [itemPID], references: [itemPID], onUpdate: Cascade)
+  isSellItem Boolean  @default(false) @map("isSellItem")
 
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
 
   @@map("auction_Data")
+}
+
+
+model auction_Get_Data{
+  auction_GetPID Int @id @default(autoincrement()) @map("auction_GetPID")
+  itemPID Int @map("itemPID")
+  userPID Int @map("userPID")
+  itemName String @map("itemName")
+  GetCount Int @default(1) @map("sellCount")
+  
+  isGetItem Boolean  @default(false) @map("isSellItem")
+
+  user_data user_Data @relation(fields: [userPID], references: [userPID], onDelete: Cascade,onUpdate: Cascade)
+
+  @@map("auction_Get_Data")
 }
 
 model refreshToken{
   tokenPID Int @id @default(autoincrement()) @map("tokenPID")
   userPID Int @map("userPID")
-  userIP Int @map("userIP")
+  userIP String @map("userIP")
   userAgent String @map("userAgent")
   createdAt DateTime @default(now()) @map("createdAt")
   expireAt DateTime @map("expireAt")
