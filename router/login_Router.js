@@ -43,7 +43,10 @@ router.post('/singUp', async (req, res, next) => {
     data: { userName, userID, userPassword: hashdePW },
   });
 
-  return res.status(201).json({ message: ' 당신은 이제 저희 회원입니다! ' });
+  return res.status(201).json({
+    message: ' 당신은 이제 저희 회원입니다! ',
+    data: { userName, userID },
+  });
 });
 
 // 로그인 api
